@@ -18,6 +18,7 @@ Abstract:
 #include "WSLCProcessLauncher.h"
 #include "WSLCContainerLauncher.h"
 #include "WslCoreFilesystem.h"
+#include "hcs.hpp"
 #include <nlohmann/json.hpp>
 
 using namespace std::literals::chrono_literals;
@@ -444,14 +445,22 @@ class WSLCTests
         std::wstring Owner;
     };
 
-    // Returns VM info (Id + Owner) for all running VMs via hcsdiag.
+    // Returns VM info (Id + Owner) for all compute systems via the HCS API.
     static std::vector<VmInfo> ListVms()
     {
-        wsl::windows::common::SubProcess process(nullptr, L"hcsdiag list -raw");
-        auto output = process.RunAndCaptureOutput(10000);
+        const wsl::windows::common::ExecutionContext context(wsl::windows::common::Context::HCS);
+
+        auto operation = wsl::windows::common::hcs::CreateOperation();
+        THROW_IF_FAILED(::HcsEnumerateComputeSystems(L"{}", operation.get()));
+
+        wil::unique_cotaskmem_string resultDocument;
+        const auto result = ::HcsWaitForOperationResult(operation.get(), 10000, &resultDocument);
+        THROW_IF_FAILED_MSG(result, "HcsEnumerateComputeSystems failed (error: %ls)", resultDocument.get());
+
+        LogInfo("HcsEnumerateComputeSystems result='%ws'", resultDocument.get());
 
         std::vector<VmInfo> vms;
-        auto json = nlohmann::json::parse(wsl::shared::string::WideToMultiByte(output.Stdout), nullptr, false);
+        const auto json = nlohmann::json::parse(wsl::shared::string::WideToMultiByte(resultDocument.get()));
         if (!json.is_array())
         {
             return vms;
