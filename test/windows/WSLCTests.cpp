@@ -5766,6 +5766,37 @@ class WSLCTests
 
             VERIFY_SUCCEEDED(container.Get().Delete(WSLCDeleteFlagsNone));
         }
+
+        // Test that Config fields are populated in inspect output.
+        {
+            const std::string envVar = "WSLC_TEST_VAR=hello";
+            const std::string workDir = "/tmp";
+
+            WSLCContainerLauncher launcher("debian:latest", "test-container-inspect-config", {"99999"}, {envVar});
+            launcher.SetEntrypoint({"sleep"});
+            launcher.SetWorkingDirectory(std::string{workDir});
+            launcher.SetUser("nobody");
+
+            auto container = launcher.Launch(*m_defaultSession);
+            auto details = container.Inspect();
+
+            const auto& config = details.Config;
+
+            VERIFY_IS_TRUE(config.Env.has_value());
+            VERIFY_IS_TRUE(std::ranges::find(*config.Env, envVar) != config.Env->end());
+
+            VERIFY_ARE_EQUAL(config.WorkingDir, workDir);
+
+            VERIFY_IS_TRUE(config.Cmd.has_value());
+            VERIFY_ARE_EQUAL(1u, config.Cmd->size());
+            VERIFY_ARE_EQUAL(config.Cmd->at(0), std::string{"99999"});
+
+            VERIFY_IS_TRUE(config.Entrypoint.has_value());
+            VERIFY_ARE_EQUAL(1u, config.Entrypoint->size());
+            VERIFY_ARE_EQUAL(config.Entrypoint->at(0), std::string{"sleep"});
+
+            VERIFY_ARE_EQUAL(config.User, std::string{"nobody"});
+        }
     }
 
     WSLC_TEST_METHOD(Exec)

@@ -260,8 +260,13 @@ struct ContainerInspectState
 struct ContainerConfig
 {
     std::string Image;
+    std::string User;
+    std::string WorkingDir;
+    std::optional<std::vector<std::string>> Env;
+    std::optional<std::vector<std::string>> Cmd;
+    std::optional<std::vector<std::string>> Entrypoint;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ContainerConfig, Image);
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ContainerConfig, Image, User, WorkingDir, Env, Cmd, Entrypoint);
 };
 
 struct InspectMount
